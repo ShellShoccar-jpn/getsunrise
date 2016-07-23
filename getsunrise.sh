@@ -12,8 +12,7 @@
 # ・BourneシェルとUNIX標準コマンド群（UNIXが動いているなら特に準備の必要なし）
 # ・curlコマンド（pathの通っている場所に置いてあればOK）
 # ・拙作の JSON & XML パーサー(parsrj.sh,unesc.sh,parsrx.sh)
-#   - 説明ページ→   https://gist.github.com/richmikan/3251311
-#   - ダウンロード→ https://gist.github.com/richmikan/3251311/download
+#   - 説明ページ→   https://github.com/ShellShoccar-jpn/Parsrs
 #   - このシェルスクリプトと同じディレクトリーに実行権限付で置いておくこと
 #
 #######################################################################
