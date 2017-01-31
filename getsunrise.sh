@@ -27,6 +27,11 @@ ZIPCODEAPI='http://geoapi.heartrails.com/api/json'
 SUNAPI='http://labs.bitmeister.jp/ohakon/api/'
 
 
+# ===== 初期化 =======================================================
+
+export PATH="$(command -p getconf PATH):${PATH:-}"
+
+
 # ===== エラー関数定義 ===============================================
 
 error_exit() {
