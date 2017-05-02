@@ -35,12 +35,12 @@
 #               also replaces \ with \\
 #
 #
-# Written by 321516 (@shellshoccarjpn) / 2017-01-30 02:21:48 JST
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 202017-05-02
 #
-# This is a public-domain software (CC0). It measns that all of the
+# This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
-# By the way, I am fed up the side effects which are broght about by
-# the major licenses.
+# By the way, We are fed up with the side effects which are brought
+# about by the major licenses.
 #
 ######################################################################
 
@@ -52,17 +52,19 @@
 # === Initialize shell environment ===================================
 set -eu
 export LC_ALL=C
-export PATH="$(command -p getconf PATH):${PATH:-}"
+export PATH="$(command -p getconf PATH)${PATH+:}${PATH-}"
+export UNIX_STD=2003  # to make HP-UX conform to POSIX
 
 # === Usage printing function ========================================
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
-	Usage   : parsrx.sh [options] [XML_file]
+	Usage   : ${0##*/} [options] [XML_file]
 	Options : -c  Prints the child tags which are had by the parent tag
-	        : -n  Prints the array subscript number after the tag name
-	        : -lf Replaces the newline sign "\n" with <s>. And in this mode,
+	          -n  Prints the array subscript number after the tag name
+	          -lf Replaces the newline sign "\n" with <s>. And in this mode,
 	              also replaces \ with \\
-	Version : 2017-01-30 02:21:48 JST
+	Version : 202017-05-02 21:11:01 JST
+	          (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1
 }
@@ -78,17 +80,20 @@ case "$# ${1:-}" in
 esac
 
 # === Get the options and the filepath ===============================
+# --- initialize option parameters -----------------------------------
 optlf=''
 bsesc='\\'
 unoptc='#'
 unoptn='#'
 file=''
-case $# in 0) set -- -;; esac
-for arg in "$@"; do
+#
+# --- get them -------------------------------------------------------
+for arg in ${1+"$@"}; do
   if   [ "_${arg#-lf}" != "_$arg" ] && [ -z "$file" ]; then
-    optlf=$(printf '%s' "${arg#-lf}_"                |
-            tr -d '\n'                               |
-            sed 's/\([\&/]\)/\\\1/g' 2>/dev/null || :)
+    optlf=$(printf '%s' "${arg#-lf}_" |
+            tr -d '\n'                |
+            grep ''                   |
+            sed 's/\([\&/]\)/\\\1/g'  )
     optlf=${optlf%_}
   elif [ "_${arg#-}" != "_$arg" ] && [ -n "${arg#-}" ] && [ -z "$file" ]; then
     for opt in $(printf '%s\n' "${arg#-}" | sed 's/\(.\)/\1 /g'); do
@@ -107,7 +112,22 @@ for arg in "$@"; do
   fi
 done
 [ -z "$optlf" ] && { optlf='\\n'; bsesc='\\\\'; }
-[ -z "$file"  ] && file='-'
+
+# === Validate the arguments =========================================
+if   [ "_$file" = '_'                ] ||
+     [ "_$file" = '_-'               ] ||
+     [ "_$file" = '_/dev/stdin'      ] ||
+     [ "_$file" = '_/dev/fd/0'       ] ||
+     [ "_$file" = '_/proc/self/fd/0' ]  ; then
+  file=''
+elif [ -f "$file"                    ] ||
+     [ -c "$file"                    ] ||
+     [ -p "$file"                    ]  ; then
+  [ -r "$file" ] || error_exit 1 'Cannot open the file: '"$file"
+else
+  print_usage_and_exit
+fi
+case "$file" in ''|-|/*|./*|../*) :;; *) file="./$file";; esac
 
 
 ######################################################################
@@ -144,11 +164,11 @@ esac
 ######################################################################
 
 # === データの流し込み ======================================================= #
-cat "$file"                                                                    |
+grep '' ${file:+"$file"}                                                       |
 #                                                                              #
 # === タグ内の属性値に含まれるスペース,改行,"<",">"を全てエスケープする ====== #
 # 1)元あった改行に印をつける                                                   #
-sed 's/$/'"$LF"'/' 2>/dev/null                                                 |
+sed 's/$/'"$LF"'/'                                                             |
 # 2)一般タグ(それ以外も混ざる)の始まる前で改行                                 #
 sed 's/\(<[^'" $T"'!-.0-9;-@[-^`{-~][^'" $T"'!-,/;-@[-^`{-~]*\)/'"$N$SCT"'\1/g'|
 # 3)属性値開始括弧(それ以外も混ざる)手前で改行                                 #

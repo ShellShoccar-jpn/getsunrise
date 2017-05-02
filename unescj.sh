@@ -19,12 +19,12 @@
 # Usage: unescj.sh [-n] [JSONPath-value_textfile]
 #
 #
-# Written by 321516 (@shellshoccarjpn) / 2017-01-27 14:53:31 JST
+# Written by Shell-Shoccar Japan (@shellshoccarjpn) on 20202017-05-02
 #
-# This is a public-domain software (CC0). It measns that all of the
+# This is a public-domain software (CC0). It means that all of the
 # people can use this for any purposes with no restrictions at all.
-# By the way, I am fed up the side effects which are broght about by
-# the major licenses.
+# By the way, We are fed up with the side effects which are brought
+# about by the major licenses.
 #
 ######################################################################
 
@@ -36,15 +36,21 @@
 # === Initialize shell environment ===================================
 set -eu
 export LC_ALL=C
-export PATH="$(command -p getconf PATH):${PATH:-}"
+export PATH="$(command -p getconf PATH)${PATH+:}${PATH-}"
+export UNIX_STD=2003  # to make HP-UX conform to POSIX
 
-# === Usage printing function ========================================
+# === Define the functions for printing usage and error message ======
 print_usage_and_exit () {
   cat <<-USAGE 1>&2
 	Usage   : ${0##*/} [-n] [JSONPath-value_textfile]
-	Version : 2017-01-29 16:08:12 JST
+	Version : 20202017-05-02 21:11:01 JST
+	          (POSIX Bourne Shell/POSIX commands)
 	USAGE
   exit 1
+}
+error_exit() {
+  ${2+:} false && echo "${0##*/}: $2" 1>&2
+  exit $1
 }
 
 
@@ -61,18 +67,33 @@ CR=$( printf '\015' )              # Carridge Return
 ACK=$(printf '\006' )              # Escape chr. for "\\"
 
 # === Get the options and the filepath ===============================
-nopt=0
-case "$#" in [!0]*) case "$1" in '-n') nopt=1;shift;; esac;; esac
-case "$#" in
-  0) file='-'
-     ;;
-  1) if [ -f "$1" ] || [ -c "$1" ] || [ -p "$1" ] || [ "_$1" = '_-' ]; then
-       file=$1
-     fi
-     ;;
-  *) print_usage_and_exit
-     ;;
+# --- initialize option parameters -----------------------------------
+optn=0
+file=''
+#
+# --- get them -------------------------------------------------------
+case "$#" in [!0]*) case "$1" in '-n') optn=1;shift;; esac;; esac
+case $# in
+  0) :                   ;;
+  1) file=$1             ;;
+  *) print_usage_and_exit;;
 esac
+
+# === Validate the arguments =========================================
+if   [ "_$file" = '_'                ] ||
+     [ "_$file" = '_-'               ] ||
+     [ "_$file" = '_/dev/stdin'      ] ||
+     [ "_$file" = '_/dev/fd/0'       ] ||
+     [ "_$file" = '_/proc/self/fd/0' ]  ; then
+  file=''
+elif [ -f "$file"                    ] ||
+     [ -c "$file"                    ] ||
+     [ -p "$file"                    ]  ; then
+  [ -r "$file" ] || error_exit 1 'Cannot open the file: '"$file"
+else
+  print_usage_and_exit
+fi
+case "$file" in ''|-|/*|./*|../*) :;; *) file="./$file";; esac
 
 
 ######################################################################
@@ -80,10 +101,10 @@ esac
 ######################################################################
 
 # === Open the data source =================================================== #
-cat "$file"                                                                    |
+grep '' ${file:+"$file"}                                                       |
 #                                                                              #
 # === Escape "\\" to ACK temporarily ========================================= #
-sed 's/\\\\/'"$ACK"'/g' 2>/dev/null                                            |
+sed 's/\\\\/'"$ACK"'/g'                                                        |
 #                                                                              #
 # === Mark the original <0x0A> with <0x0A>+"\N" after it ===================== #
 sed 's/$/'"$LFs"'\\N/'                                                         |
@@ -143,7 +164,7 @@ sed 's/\\r/'"$CR"'/g'                                                          |
 sed 's/\\t/'"$TAB"'/g'                                                         |
 #                                                                              #
 # === Also unescape "\0", "\n", "\\" when "-n" option is not given =========== #
-case "$nopt" in                                                                #
+case "$optn" in                                                                #
   0) sed 's/\\0//g'                             |  # - "\0" should be deleted  #
      sed 's/\\n/'"$LFs"'/g'                     |  #   without conv to <0x00>  #
      sed 's/'"$ACK"'/\\\\/g'                    |  # - Unescaoe escaped "\\"s  #
